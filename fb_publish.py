@@ -4,10 +4,78 @@ import requests
 from facepy import GraphAPI
 import configparser
 import json
+import sys
+from PyQt5.QtWidgets import QApplication, QFileDialog, QMainWindow, QPushButton, QVBoxLayout, QWidget, QLineEdit
 
 config_file = 'fb_config.ini'
 post_file = 'post.json'
 
+
+class MainWindow(QMainWindow):
+    def __init__(self,sections):
+        super().__init__()
+
+        self.setWindowTitle("Facebook Post Upload")
+        self.setGeometry(100, 100, 400, 200)
+
+        layout = QVBoxLayout()
+
+        access_token_label = QLineEdit()
+        access_token_label.setPlaceholderText("Access Token")
+        layout.addWidget(access_token_label)
+        self.access_token_label = access_token_label
+
+        message_label = QLineEdit()
+        message_label.setPlaceholderText("Message")
+        layout.addWidget(message_label)
+        self.message_label = message_label
+
+        select_images_button = QPushButton("Select Images")
+        select_images_button.clicked.connect(self.handle_select_images)
+        layout.addWidget(select_images_button)
+
+        submit_button = QPushButton("Submit")
+        submit_button.clicked.connect(self.handle_submit)
+        layout.addWidget(submit_button)
+
+        central_widget = QWidget()
+        central_widget.setLayout(layout)
+        self.setCentralWidget(central_widget)
+        self.sections = sections
+        self.image_urls = []
+
+    def handle_select_images(self):
+        file_dialog = QFileDialog()
+        file_dialog.setFileMode(QFileDialog.ExistingFiles)
+        file_dialog.setNameFilter("Image files (*.jpg *.jpeg *.png)")
+        if file_dialog.exec_():
+            selected_files = file_dialog.selectedFiles()
+            self.image_urls = selected_files
+
+    def handle_submit(self):
+        access_token = self.access_token_label.text()
+        message = self.message_label.text()
+
+        print(f"Access Token: {access_token}")
+        print(f"Message: {message}")
+        print(f"Image URLs: {self.image_urls}")
+
+        def make_post(access_token_entry, message_entry, image_urls_entry, sections):
+            access_token = access_token_entry.strip()
+            message = message_entry
+            image_urls = image_urls_entry
+            fb = FbPageAPI(access_token)
+            for index, section in enumerate(sections):
+                page_info = config_section_map(section)
+                print(index + 1, page_info)
+                # get page token
+                page_access_token = fb.get_page_access_token(_page_id=page_info['page_id'])
+                fb.upload_images_and_create_post(access_token=page_access_token,
+                                                 page_id=page_info['page_id'],
+                                                 album_name='Mobile uploads',
+                                                 message=message,
+                                                 image_urls=image_urls)
+        make_post(access_token,message,self.image_urls,self.sections)
 
 class FbPageAPI:
     def __init__(self, _access_token, limit=250):
@@ -161,27 +229,11 @@ if __name__ == '__main__':
                 dict1[option] = None
         return dict1
 
-    access_token = config_section_map('ACCESS_TOKEN')['access_token']
-    if not access_token:
-        print('Access token cannot be none. visit: https://developers.facebook.com/tools/explorer/')
-        exit()
-
-    # this token is users (don't use the global token)
-    fb = FbPageAPI(access_token)
-    sections.remove('ACCESS_TOKEN')
     postDetails = json.load(open(post_file))
-    for index, section in enumerate(sections):
-        page_info = config_section_map(section)
-        print(index+1, page_info)
-        # get page token
-        page_access_token = fb.get_page_access_token(_page_id=page_info['page_id'])
-        # publish
-        # fb.post_in_page(page_access_token=page_access_token,
-        #                page_id=page_info['page_id'],
-        #                image_file=postDetails['images'],
-        #                message=postDetails['message'])
-        fb.upload_images_and_create_post(access_token=page_access_token,
-                                         page_id=page_info['page_id'],
-                                   album_name='Mobile uploads',
-                                   message=postDetails['message'],
-                                   image_urls=postDetails['images'])
+    app = QApplication(sys.argv)
+    window = MainWindow(sections)
+    window.show()
+    sys.exit(app.exec_())
+
+
+
