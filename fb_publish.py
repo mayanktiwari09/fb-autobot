@@ -67,7 +67,6 @@ class MainWindow(QMainWindow):
             fb = FbPageAPI(access_token)
             for index, section in enumerate(sections):
                 page_info = config_section_map(section)
-                print(index + 1, page_info)
                 # get page token
                 page_access_token = fb.get_page_access_token(_page_id=page_info['page_id'])
                 fb.upload_images_and_create_post(access_token=page_access_token,
@@ -170,6 +169,7 @@ class FbPageAPI:
 
             if post_response.status_code == 200:
                 print("Post created successfully!")
+                print("Post ID: "+json.loads(post_response.content.decode('utf-8'))['id'])
             else:
                 print("Failed to create the post. Error:", post_response.json())
         else:
